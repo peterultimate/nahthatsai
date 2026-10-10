@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdminApi, audit } from "@/lib/admin";
 import { readBoundedInteger } from "@/lib/bounded-integer";
 import { generateAiVariantsBatch } from "@nahthatsai/seed";
+import { aiApiKey } from "@/lib/ai-provider";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -9,9 +10,9 @@ export const maxDuration = 300;
 export async function POST(req: Request) {
   const auth = await requireAdminApi();
   if ("error" in auth) return auth.error;
-  if (!process.env.OPENAI_API_KEY) {
+  if (!aiApiKey()) {
     return NextResponse.json(
-      { ok: false, error: "OPENAI_API_KEY is not configured. Run the worker seed instead." },
+      { ok: false, error: "AI provider key is not configured. Run the worker seed instead." },
       { status: 400 },
     );
   }

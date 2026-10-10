@@ -1,21 +1,22 @@
 import "server-only";
 import { sqlClient } from "./db";
 import { sendEmail } from "./email";
+import { aiApiKey, aiBaseUrl, aiHeaders, aiModel } from "./ai-provider";
 
 export type GeneratedNewsletter = { subject: string; html: string };
 
-/** Ask OpenAI to draft a newsletter from an admin prompt. Returns subject + HTML body. */
+/** Ask the AI to draft a newsletter from an admin prompt. Returns subject + HTML body. */
 export async function generateNewsletter(prompt: string): Promise<GeneratedNewsletter> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error("OPENAI_API_KEY is not set.");
+  const apiKey = aiApiKey();
+  if (!apiKey) throw new Error("AI provider key is not set.");
   const clean = prompt.trim().slice(0, 2000);
   if (!clean) throw new Error("Enter a prompt.");
 
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+  const res = await fetch(`${aiBaseUrl()}/chat/completions`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    headers: aiHeaders(),
     body: JSON.stringify({
-      model: "gpt-4o-mini",
+      model: aiModel("gpt-4o-mini"),
       temperature: 0.7,
       response_format: { type: "json_object" },
       messages: [

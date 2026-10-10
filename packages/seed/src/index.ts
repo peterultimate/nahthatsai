@@ -3,6 +3,7 @@ import type { Client } from "@libsql/client";
 import { buildVariantPrompt, promptSummary, SEED_CATEGORIES } from "./prompts";
 import { storeImage } from "./store-image";
 import { poolKey } from "./store-remote-image";
+import { aiApiKey, aiBaseUrl, aiHeaders, aiModel } from "./ai-provider";
 
 export { SEED_CATEGORIES } from "./prompts";
 export { seedStorageConfigured } from "./storage";
@@ -162,30 +163,30 @@ async function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-/** Call OpenAI image generation with retry/backoff; returns raw PNG bytes. */
+/** Call the configured AI provider image generation with retry/backoff; returns raw PNG bytes. */
 async function generateVariantImage(prompt: string, model: string): Promise<Buffer> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error("OPENAI_API_KEY is not set.");
+  const apiKey = aiApiKey();
+  if (!apiKey) throw new Error("AI provider key is not set.");
   let lastErr = "";
   for (let attempt = 0; attempt < 4; attempt++) {
     if (attempt > 0) await sleep(1500 * 2 ** (attempt - 1)); // 1.5s, 3s, 6s
-    const res = await fetch("https://api.openai.com/v1/images/generations", {
+    const res = await fetch(`${aiBaseUrl()}/images/generations`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model, prompt, size: OPENAI_IMAGE_SIZE, n: 1 }),
+      headers: aiHeaders(),
+      body: JSON.stringify({ model: aiModel(model), prompt, size: OPENAI_IMAGE_SIZE, n: 1 }),
     });
     if (res.ok) {
       const gen = (await res.json()) as { data: Array<{ b64_json?: string; url?: string }> };
       const item = gen.data[0];
       if (item?.b64_json) return Buffer.from(item.b64_json, "base64");
       if (item?.url) return Buffer.from(await (await fetch(item.url)).arrayBuffer());
-      throw new Error("OpenAI returned no image data.");
+      throw new Error("AI provider returned no image data.");
     }
     lastErr = `${res.status}: ${(await res.text()).slice(0, 150)}`;
     // Retry transient errors; fail fast on client errors (except rate limit).
     if (res.status !== 429 && res.status < 500) break;
   }
-  throw new Error(`OpenAI image gen failed (${lastErr})`);
+  throw new Error(`AI image gen failed (${lastErr})`);
 }
 
 /** Generate one photorealistic AI variant, store the image, insert the media row. */
@@ -247,7 +248,7 @@ export async function generateAiVariantsBatch(opts: {
   count: number;
   client?: Client;
 }): Promise<{ batchId: string; generated: number }> {
-  if (!process.env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not set.");
+  if (!aiApiKey()) throw new Error("AI provider key is not set.");
   const client = opts.client ?? getClient();
   const batchId = await startBatch(client, "OpenAI AI variants", "openai", null, opts.count);
   let generated = 0;

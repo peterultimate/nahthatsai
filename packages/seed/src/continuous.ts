@@ -3,6 +3,7 @@ import type { Client } from "@libsql/client";
 import { SEED_CATEGORIES } from "./prompts";
 import { createAiVariant, slugify } from "./index";
 import { storeRemoteImage } from "./store-remote-image";
+import { aiApiKey } from "./ai-provider";
 
 async function tagId(client: Client, slug: string): Promise<string | null> {
   const r = await client.execute({ sql: "SELECT id FROM tags WHERE slug = ?", args: [slug] });
@@ -65,7 +66,7 @@ async function createRealPhoto(client: Client): Promise<void> {
 export async function generateContinuousBatch(opts: { count?: number; client?: Client } = {}): Promise<{ ai: number; real: number }> {
   const client = opts.client ?? getClient();
   const count = Math.max(1, opts.count ?? 3);
-  const haveOpenai = !!process.env.OPENAI_API_KEY;
+  const haveAi = !!aiApiKey();
   let ai = 0;
   let real = 0;
 
@@ -79,7 +80,7 @@ export async function generateContinuousBatch(opts: { count?: number; client?: C
     // Critical: if AI is the class we need but we can't make it (no OPENAI_API_KEY),
     // SKIP this iteration. Falling back to a real photo here only deepens the skew
     // — which is exactly what flooded the pool with not-AI before.
-    if (wantAi && !haveOpenai) {
+    if (wantAi && !haveAi) {
       console.warn("[continuous] AI is underrepresented but OPENAI_API_KEY is missing — skipping (not adding a real photo, to avoid worsening the imbalance)");
       continue;
     }

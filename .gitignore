@@ -37,6 +37,7 @@ drizzle/
 .env.production.local
 .env.test.local
 .env.*.local
+.env.production
 
 # Logs
 logs

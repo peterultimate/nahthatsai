@@ -1,5 +1,6 @@
 import "server-only";
 import { env } from "./env";
+import { aiBaseUrl, aiHeaders, aiModel, aiApiKey } from "./ai-provider";
 
 const MODEL = process.env.AI_VISION_MODEL || "gpt-4o-mini";
 
@@ -19,15 +20,15 @@ function absolutize(url: string): string {
   return url.startsWith("/") ? `${env.appUrl}${url}` : url;
 }
 
-/** Run an OpenAI vision analysis of an image. Returns markdown-ish text. */
+/** Run an AI vision analysis of an image. Returns markdown-ish text. */
 export async function analyzeImage(imageUrl: string, kind: AnalysisKind): Promise<string> {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = aiApiKey();
   if (!apiKey) throw new Error("AI analysis is not available right now.");
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+  const res = await fetch(`${aiBaseUrl()}/chat/completions`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    headers: aiHeaders(),
     body: JSON.stringify({
-      model: MODEL,
+      model: aiModel(MODEL),
       temperature: 0.4,
       messages: [
         { role: "system", content: PROMPTS[kind] },

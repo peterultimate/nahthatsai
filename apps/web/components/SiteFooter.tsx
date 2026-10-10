@@ -7,8 +7,8 @@ export function SiteFooter() {
         <div>
           <h4>Nah, that's AI</h4>
           <span className="muted-sm">
-            No algorithm. No doomscroll. Just RSS. Built for humans, feed
-            readers, and AI agents.
+            A crowd-powered AI vs real media classifier. Every vote becomes
+            public ground truth.
           </span>
         </div>
         <div>

@@ -1,6 +1,7 @@
 import { getClient } from "@nahthatsai/db";
 import type { Client } from "@libsql/client";
 import { SEED_CATEGORIES } from "./prompts";
+import { aiApiKey } from "./ai-provider";
 // Imported lazily-at-call-time from the barrel; safe despite the cycle because
 // these are hoisted function declarations only invoked inside seedPool().
 import { importUnsplashBatch, createAiVariant, slugify } from "./index";
@@ -55,14 +56,14 @@ export async function seedPool(
   const aiTarget = opts.aiPerCategory ?? 10;
   const concurrency = Math.max(1, opts.aiConcurrency ?? 3);
   const haveUnsplash = !!process.env.UNSPLASH_ACCESS_KEY;
-  const haveOpenai = !!process.env.OPENAI_API_KEY;
+  const haveAi = !!aiApiKey();
 
   let realImported = 0;
   let aiGenerated = 0;
   const skipped: string[] = [];
 
   if (!haveUnsplash && realTarget > 0) skipped.push("real photos (UNSPLASH_ACCESS_KEY unset)");
-  if (!haveOpenai && aiTarget > 0) skipped.push("AI variants (OPENAI_API_KEY unset)");
+  if (!haveAi && aiTarget > 0) skipped.push("AI variants (AI provider key unset)");
 
   for (const category of categories) {
     const catSlug = slugify(category.replace(/ photography$/, ""));
@@ -95,7 +96,7 @@ export async function seedPool(
 
     // --- AI variants (OpenAI) ---
     const aiNeed = Math.max(0, aiTarget - existAi);
-    if (aiNeed > 0 && haveOpenai) {
+    if (aiNeed > 0 && haveAi) {
       // Use this category's real photos as inspiration captions where available.
       const insp = await client.execute({
         sql: `SELECT m.id, m.title FROM media m

@@ -1,5 +1,6 @@
 import { getClient, newId } from "@nahthatsai/db";
 import type { Client } from "@libsql/client";
+import { aiApiKey, aiBaseUrl, aiHeaders, aiModel } from "./ai-provider";
 
 const SYSTEM = [
   "You write short, punchy, concrete tips for a game where players guess whether a",
@@ -11,24 +12,24 @@ const SYSTEM = [
 ].join(" ");
 
 /**
- * Generate a batch of fresh game tips with OpenAI and insert them (dedup by
- * unique text). Meant to be run occasionally to top up the tip pool — never in
- * the hot request path. Requires OPENAI_API_KEY.
+ * Generate a batch of fresh game tips with the configured AI provider and insert
+ * them (dedup by unique text). Meant to be run occasionally to top up the tip
+ * pool. Never in the hot request path.
  */
 export async function generateTips(opts: { count?: number; client?: Client } = {}): Promise<{ added: number }> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error("OPENAI_API_KEY is not set.");
+  const apiKey = aiApiKey();
+  if (!apiKey) throw new Error("AI provider key is not set.");
   const client = opts.client ?? getClient();
   const count = Math.min(40, Math.max(1, opts.count ?? 20));
 
   const existing = await client.execute("SELECT text FROM tips LIMIT 200");
   const have = existing.rows.map((r) => r.text as string);
 
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+  const res = await fetch(`${aiBaseUrl()}/chat/completions`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    headers: aiHeaders(),
     body: JSON.stringify({
-      model: process.env.AI_TEXT_MODEL || "gpt-4o-mini",
+      model: aiModel(process.env.AI_TEXT_MODEL || "gpt-4o-mini"),
       temperature: 0.9,
       messages: [
         { role: "system", content: SYSTEM },

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 
 export const runtime = "edge";
 
+type Params = { slug?: string[] };
+
 function jsonNotFound() {
   return NextResponse.json(
     { error: "Not found. See /api-docs for API documentation." },
@@ -9,7 +11,17 @@ function jsonNotFound() {
   );
 }
 
-export async function GET() {
+function redirectToApiDocs(req: Request) {
+  const url = new URL(req.url);
+  url.pathname = "/api-docs";
+  url.search = "";
+  return NextResponse.redirect(url, 307);
+}
+
+/** GET /api → redirect to /api-docs; anything else unmatched → 404 JSON. */
+export async function GET(req: Request, { params }: { params: Promise<Params> }) {
+  const { slug } = await params;
+  if (!slug || slug.length === 0) return redirectToApiDocs(req);
   return jsonNotFound();
 }
 
