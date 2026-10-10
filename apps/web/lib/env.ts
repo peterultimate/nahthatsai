@@ -1,0 +1,104 @@
+/**
+ * Centralised env access. We read lazily so the app can boot in dev with
+ * sensible defaults and only hard-fail on genuinely required secrets in prod.
+ */
+function bool(v: string | undefined, def = false): boolean {
+  if (v == null) return def;
+  return /^(1|true|yes|on)$/i.test(v);
+}
+
+function int(v: string | undefined, def: number): number {
+  if (v == null || v.trim() === "") return def;
+  if (!/^\d+$/.test(v.trim())) return def;
+  const n = Number(v);
+  return Number.isSafeInteger(n) && n > 0 ? n : def;
+}
+
+function usd(v: string | undefined, def: number): number {
+  if (v == null || v.trim() === "") return def;
+  if (!/^\d+(?:\.\d{1,2})?$/.test(v.trim())) return def;
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : def;
+}
+
+export const env = {
+  appUrl: process.env.APP_URL || "http://localhost:3000",
+  nodeEnv: process.env.NODE_ENV || "development",
+  get isProd() {
+    return this.nodeEnv === "production";
+  },
+  get sessionSecret(): string {
+    const val = process.env.SESSION_SECRET;
+    if (!val && this.isProd) {
+      throw new Error(
+        "SESSION_SECRET must be set in production (env.ts)"
+      );
+    }
+    return val || "dev-only-insecure-change-me-0000000000000000";
+  },
+  adminEmails: (process.env.ADMIN_EMAILS || "hello@peterultimate.com")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean),
+
+  get demoLoginEnabled(): boolean {
+    return (
+      this.nodeEnv === "development" ||
+      /^(1|true|yes|on)$/i.test(process.env.ENABLE_DEMO_LOGIN || "")
+    );
+  },
+
+  tursoUrl: process.env.TURSO_DATABASE_URL || "file:./local.db",
+  tursoToken: process.env.TURSO_AUTH_TOKEN || undefined,
+
+  resendApiKey: process.env.RESEND_API_KEY || "",
+  emailFrom: process.env.EMAIL_FROM || "Nah, that's AI <hello@nahthatsai.com>",
+  verificationTtlMinutes: int(process.env.EMAIL_VERIFICATION_TTL_MINUTES, 30),
+
+  storageProvider: process.env.STORAGE_PROVIDER || "r2",
+  r2: {
+    accountId: process.env.R2_ACCOUNT_ID || "",
+    accessKeyId: process.env.R2_ACCESS_KEY_ID || "",
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || "",
+    bucket: process.env.R2_BUCKET || "",
+    publicBaseUrl: process.env.R2_PUBLIC_BASE_URL || "",
+  },
+  maxImageUploadMb: int(process.env.MAX_IMAGE_UPLOAD_MB, 12),
+  maxVideoUploadMb: int(process.env.MAX_VIDEO_UPLOAD_MB, 75),
+  maxVideoDurationSeconds: int(process.env.MAX_VIDEO_DURATION_SECONDS, 30),
+
+  rssCacheSeconds: int(process.env.RSS_CACHE_SECONDS, 300),
+  prizeMinScored: int(process.env.PRIZE_MIN_SCORED, 3),
+  voteSalt: process.env.VOTE_SALT || "dev-vote-salt",
+  submissionSalt: process.env.SUBMISSION_SALT || "dev-submission-salt",
+  rateLimitSalt: process.env.RATE_LIMIT_SALT || "dev-rate-limit-salt",
+
+  posthogKey: process.env.POSTHOG_KEY || "",
+  posthogHost: process.env.POSTHOG_HOST || "",
+
+  coinpay: {
+    apiKey: process.env.COINPAY_API_KEY || "",
+    businessId: process.env.COINPAY_BUSINESS_ID || "",
+    baseUrl: process.env.COINPAY_BASE_URL || "https://coinpayportal.com/api",
+    webhookSecret: process.env.COINPAY_WEBHOOK_SECRET || "",
+  },
+  get coinpayConfigured() {
+    return !!(this.coinpay.apiKey && this.coinpay.businessId);
+  },
+  priceApiAccessUsd: usd(process.env.PRICE_API_ACCESS_USD, 1),
+  priceLifetimeUsd: usd(process.env.PRICE_LIFETIME_USD, 2),
+  pricePlayPassUsd: usd(process.env.PRICE_PLAY_PASS_USD, 1),
+  cronSecret: process.env.CRON_SECRET || "",
+
+  // The VAPID keys themselves are read at run time by
+  // @profullstack/notifications (vapidKeysFromEnv), not here.
+  vapid: {
+    subject: process.env.VAPID_SUBJECT || "mailto:hello@nahthatsai.com",
+  },
+
+  hasResend: bool(process.env.RESEND_API_KEY ? "1" : "0"),
+};
+
+export function isAdminEmail(email: string): boolean {
+  return env.adminEmails.includes(email.trim().toLowerCase());
+}

@@ -1,0 +1,67 @@
+import { resolve } from "node:path";
+
+// Plain JS, not next.config.ts: `next start` loads a .ts config through the
+// typescript package, a devDependency the production image does not install
+// (Next then tries to `npm install` it at boot and the container dies).
+
+const isDev = process.env.NODE_ENV !== "production";
+
+// Content-Security-Policy — allows our own inline (Next hydration), Google Fonts.
+// Media/images come from R2 + user URLs, hence https: for img/media.
+// Dev adds 'unsafe-eval' because Next.js React Refresh (hot reload) uses eval().
+const CSP = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'self'",
+  "form-action 'self'",
+  "img-src 'self' data: blob: https:",
+  "media-src 'self' blob: https:",
+  "font-src 'self' data: https://fonts.gstatic.com",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "script-src 'self' 'unsafe-inline'" + (isDev ? " 'unsafe-eval'" : ""),
+  "connect-src 'self' https:",
+  "frame-src 'self' https:",
+  "upgrade-insecure-requests",
+].join("; ");
+
+const SECURITY_HEADERS = [
+  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "X-Frame-Options", value: "SAMEORIGIN" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), browsing-topics=()" },
+  { key: "Content-Security-Policy", value: CSP },
+];
+
+/** @type {import("next").NextConfig} */
+const nextConfig = {
+  // Skip ESLint during the production build (peer-dep resolution is flaky in
+  // the Bun workspace). Lint runs separately via `bun run lint`.
+  eslint: { ignoreDuringBuilds: true },
+  // Pin the workspace root (the dir holding bun.lock). Without it Next guesses
+  // from the nearest lockfile above, which on a dev box can be a home-dir one.
+  // build and start both run with cwd = apps/web.
+  outputFileTracingRoot: resolve(process.cwd(), "../.."),
+  // @nahthatsai/db ships raw TS that Next must transpile.
+  transpilePackages: ["@nahthatsai/db", "@nahthatsai/seed"],
+  // The database drivers stay out of the bundle: pg (under @profullstack/libsql-pg)
+  // and, for local file: databases, the native libSQL client.
+  serverExternalPackages: ["@profullstack/libsql-pg", "pg", "@libsql/client", "@node-rs/argon2", "libsql", "sharp"],
+  // Don't advertise the framework/version to attackers.
+  poweredByHeader: false,
+  images: {
+    // Seed + Unsplash + R2 hosts. Kept permissive for MVP.
+    remotePatterns: [
+      { protocol: "https", hostname: "**" },
+    ],
+  },
+  async redirects() {
+    return [{ source: "/i/:slug", destination: "/m/:slug", permanent: true }];
+  },
+  async headers() {
+    return [{ source: "/:path*", headers: SECURITY_HEADERS }];
+  },
+};
+
+export default nextConfig;

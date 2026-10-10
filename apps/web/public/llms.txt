@@ -1,0 +1,29 @@
+# Nah, that's AI
+
+> A free game and crowd-sourced AI-detection service: verified humans vote whether a
+> photorealistic image, video, or post is AI-generated or real, and you get the crowd's
+> verdict on the web, by RSS, or via API. Built by peterultimate.
+
+## What it is
+
+- [Play](https://nahthatsai.com/play): Guess AI vs. real one item at a time and build a streak. Free; a few rounds as a guest, then a free account.
+- [Latest feed](https://nahthatsai.com/): Newest media the crowd is voting on.
+- [Leaderboard](https://nahthatsai.com/leaderboard): Top human detectors by accuracy and streak.
+- [Tags](https://nahthatsai.com/tags): Browse media by category.
+
+## For developers & agents
+
+- [Crowd-detection API](https://nahthatsai.com/api): Query the crowd's AI-vs-real verdict programmatically.
+- [Agent skill](https://nahthatsai.com/skill.md): What agents can do with the site.
+- [RSS feeds](https://nahthatsai.com/feeds): Latest, trending, featured, and leaderboard feeds.
+
+## Account & pricing
+
+- [Pricing](https://nahthatsai.com/pricing): Playing is free. Optional $2 lifetime membership and $1 API access (crypto via CoinPay).
+- [Create account](https://nahthatsai.com/signup): Free: save streaks, appear on leaderboards, earn rewards.
+
+## About
+
+- [About](https://nahthatsai.com/about): What Nah, that's AI is and who builds it.
+- [Terms](https://nahthatsai.com/terms) · [Privacy](https://nahthatsai.com/privacy)
+- Source: https://github.com/peterultimate/nahthatsai

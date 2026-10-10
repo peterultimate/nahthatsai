@@ -1,0 +1,326 @@
+import "server-only";
+import type { Client } from "@libsql/client";
+import { sqlClient } from "./db";
+import { newId } from "@nahthatsai/db";
+import { randomToken, hmac } from "./crypto";
+import { normalizePromoPercentOff } from "./promo-form";
+
+type SqlExecutor = Pick<Client, "execute">;
+
+const API_KEY_SALT = "nahthatsai-api-key";
+const LEGACY_API_KEY_SALT = "aiornot-api-key";
+
+export type ApiKeyRow = {
+  id: string;
+  prefix: string;
+  label: string | null;
+  isActive: boolean;
+  requestCount: number;
+  lastUsedAt: string | null;
+  createdAt: string;
+};
+
+export function normalizeApiKeyLabel(label?: string): string | null {
+  const trimmed = label?.trim().replace(/\s+/g, " ");
+  return trimmed ? trimmed.slice(0, 60) : null;
+}
+
+/** Create an API key. The plaintext is returned once and never stored. */
+export async function createApiKey(
+  userId: string,
+  label?: string,
+  db: SqlExecutor = sqlClient,
+): Promise<{ plaintext: string; id: string; prefix: string }> {
+  const secret = randomToken(24);
+  const plaintext = `nts_live_${secret}`;
+  const prefix = plaintext.slice(0, 16);
+  const id = newId("key");
+  await db.execute({
+    sql: `INSERT INTO api_keys (id, user_id, key_hash, key_prefix, label)
+          VALUES (?, ?, ?, ?, ?)`,
+    args: [id, userId, hmac(plaintext, API_KEY_SALT), prefix, normalizeApiKeyLabel(label)],
+  });
+  return { plaintext, id, prefix };
+}
+
+export async function listApiKeys(userId: string): Promise<ApiKeyRow[]> {
+  const res = await sqlClient.execute({
+    sql: `SELECT id, key_prefix, label, is_active, request_count, last_used_at, created_at
+          FROM api_keys WHERE user_id = ? ORDER BY created_at DESC`,
+    args: [userId],
+  });
+  return res.rows.map((r) => ({
+    id: r.id as string,
+    prefix: r.key_prefix as string,
+    label: (r.label as string) ?? null,
+    isActive: Number(r.is_active) === 1,
+    requestCount: Number(r.request_count ?? 0),
+    lastUsedAt: (r.last_used_at as string) ?? null,
+    createdAt: r.created_at as string,
+  }));
+}
+
+export async function revokeApiKey(userId: string, id: string): Promise<void> {
+  await sqlClient.execute({
+    sql: "UPDATE api_keys SET is_active = 0 WHERE id = ? AND user_id = ?",
+    args: [id, userId],
+  });
+}
+
+/** Verify a raw API key from an Authorization header. Bumps usage counters.
+ *
+ * Accepts both the current `nts_live_` prefix (hash with API_KEY_SALT) and the
+ * legacy `aion_live_` prefix from the previous brand. Legacy keys are lazily
+ * migrated on first successful verify: the stored hash is recalculated against
+ * the new salt so the old salt never needs to be consulted again for that key.
+ */
+export async function verifyApiKey(
+  rawKey: string,
+): Promise<{ userId: string; keyId: string } | null> {
+  if (!rawKey) return null;
+  const isLegacy = rawKey.startsWith("aion_");
+  if (!rawKey.startsWith("nts_") && !isLegacy) return null;
+  const salt = isLegacy ? LEGACY_API_KEY_SALT : API_KEY_SALT;
+
+  const res = await sqlClient.execute({
+    sql: "SELECT id, user_id FROM api_keys WHERE key_hash = ? AND is_active = 1 LIMIT 1",
+    args: [hmac(rawKey, salt)],
+  });
+  const row = res.rows[0];
+  if (!row) return null;
+
+  if (isLegacy) {
+    // Lazy migration: re-hash with the current salt so future verifies hit the
+    // fast path and the legacy salt can be removed in a later deploy.
+    try {
+      await sqlClient.execute({
+        sql: "UPDATE api_keys SET key_hash = ?, key_prefix = ? WHERE id = ?",
+        args: [hmac(rawKey, API_KEY_SALT), rawKey.slice(0, 16), row.id],
+      });
+    } catch (err) {
+      console.error("[entitlements] legacy api key lazy re-hash failed:", (err as Error).message);
+    }
+  }
+
+  await sqlClient.execute({
+    sql: "UPDATE api_keys SET request_count = request_count + 1, last_used_at = CURRENT_TIMESTAMP WHERE id = ?",
+    args: [row.id],
+  });
+  return { userId: row.user_id as string, keyId: row.id as string };
+}
+
+export async function grantMembership(userId: string, db: SqlExecutor = sqlClient): Promise<void> {
+  await db.execute({
+    sql: "UPDATE users SET is_lifetime_member = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+    args: [userId],
+  });
+}
+
+/** Grant the one-time play pass (idempotent — first grant wins the timestamp). */
+export async function grantPlayPass(userId: string, db: SqlExecutor = sqlClient): Promise<void> {
+  await db.execute({
+    sql: "UPDATE users SET play_pass_at = COALESCE(play_pass_at, CURRENT_TIMESTAMP), updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+    args: [userId],
+  });
+}
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+export type PromoQuote =
+  | { ok: true; code: string; percentOff: number; baseUsd: number; finalUsd: number; free: boolean }
+  | { ok: false; error: string };
+
+/**
+ * Validate a promo code against a purchase and compute the discounted price.
+ * Does NOT mutate anything — pricing only. One redemption per user per code;
+ * respects active flag, applies_to (which product) and max_uses.
+ */
+export async function quotePromo(
+  userId: string,
+  codeRaw: string,
+  purpose: string,
+  baseUsd: number,
+): Promise<PromoQuote> {
+  const code = codeRaw.trim().toUpperCase();
+  if (!code) return { ok: false, error: "Enter a code." };
+  const r = await sqlClient.execute({
+    sql: "SELECT code, percent_off, applies_to, active, max_uses, uses FROM promo_codes WHERE code = ? LIMIT 1",
+    args: [code],
+  });
+  const row = r.rows[0];
+  if (!row || Number(row.active) !== 1) return { ok: false, error: "That code isn't valid right now." };
+  const appliesTo = (row.applies_to as string) || "any";
+  if (appliesTo !== "any" && appliesTo !== purpose) {
+    return { ok: false, error: "That code doesn't apply to this purchase." };
+  }
+  if (row.max_uses != null && Number(row.uses) >= Number(row.max_uses)) {
+    return { ok: false, error: "This code has been fully redeemed." };
+  }
+  const dup = await sqlClient.execute({
+    sql: "SELECT 1 FROM promo_redemptions WHERE code = ? AND user_id = ? LIMIT 1",
+    args: [code, userId],
+  });
+  if (dup.rows[0]) return { ok: false, error: "You've already used this code." };
+
+  const percentOff = normalizePromoPercentOff(row.percent_off);
+  const finalUsd = round2(baseUsd * (1 - percentOff / 100));
+  return { ok: true, code, percentOff, baseUsd, finalUsd, free: finalUsd <= 0 };
+}
+
+/**
+ * Record a promo redemption. Returns true if this call newly recorded the
+ * redemption, false if it was already recorded for this user+code.
+ *
+ * Uses INSERT OR IGNORE + a rowsAffected check so the duplicate guard is a
+ * single atomic statement instead of the separate check-then-record pair in
+ * quotePromo()/recordPromoRedemption() (fixes #92, TOCTOU). The composite PK
+ * (code, user_id) makes the INSERT itself the source of truth.
+ *
+ * Never throws. Callers grant the entitlement BEFORE recording the redemption,
+ * and the grant response carries the one-time API key plaintext — letting a DB
+ * blip escape here would 500 that response and lose the key for good. Log and
+ * report "not newly recorded" instead.
+ */
+export async function recordPromoRedemption(codeRaw: string, userId: string): Promise<boolean> {
+  const code = codeRaw.trim().toUpperCase();
+  if (!code) return false;
+  // Tracked outside the try so a failed counter bump still reports the
+  // redemption that did land, rather than claiming it never happened.
+  let recorded = false;
+  try {
+    const res = await sqlClient.execute({
+      sql: "INSERT OR IGNORE INTO promo_redemptions (code, user_id) VALUES (?, ?)",
+      args: [code, userId],
+    });
+    if (Number(res.rowsAffected) !== 1) return false; // already recorded
+    recorded = true;
+    // Atomic capped increment (also covered by #106): never over-redeem past max_uses.
+    await sqlClient.execute({
+      sql: "UPDATE promo_codes SET uses = uses + 1 WHERE code = ? AND (max_uses IS NULL OR uses < max_uses)",
+      args: [code],
+    });
+  } catch (err) {
+    console.error(`[promo] failed to record redemption of ${code}:`, (err as Error).message);
+  }
+  return recorded;
+}
+
+export type FreePromoGrantResult =
+  | { ok: true; grant: GrantResult }
+  | { ok: false; error: string };
+
+export async function grantFreePromo({
+  paymentId,
+  userId,
+  purpose,
+  code: codeRaw,
+}: {
+  paymentId: string;
+  userId: string;
+  purpose: string;
+  code: string;
+}): Promise<FreePromoGrantResult> {
+  const code = codeRaw.trim().toUpperCase();
+  if (!code) return { ok: false, error: "That code is no longer available." };
+
+  const tx = await sqlClient.transaction("write");
+  try {
+    const claim = await tx.execute({
+      sql: "INSERT OR IGNORE INTO promo_redemptions (code, user_id) VALUES (?, ?)",
+      args: [code, userId],
+    });
+    if (claim.rowsAffected === 0) {
+      await tx.rollback();
+      return { ok: false, error: "That code is no longer available." };
+    }
+
+    const reserve = await tx.execute({
+      sql: `UPDATE promo_codes SET uses = uses + 1
+            WHERE code = ? AND active = 1 AND percent_off >= 100
+              AND (applies_to = 'any' OR applies_to = ?)
+              AND (max_uses IS NULL OR uses < max_uses)`,
+      args: [code, purpose],
+    });
+    if (reserve.rowsAffected === 0) {
+      await tx.rollback();
+      return { ok: false, error: "That code is no longer available." };
+    }
+
+    const grant = await grantForPayment({ id: paymentId, userId, purpose }, tx);
+    await tx.execute({
+      sql: `INSERT INTO payments (id, user_id, purpose, amount_usd, status, promo_code, granted_at)
+            VALUES (?, ?, ?, 0, 'granted', ?, CURRENT_TIMESTAMP)`,
+      args: [paymentId, userId, purpose, code],
+    });
+    await tx.commit();
+    return { ok: true, grant };
+  } catch (error) {
+    await tx.rollback();
+    throw error;
+  } finally {
+    tx.close();
+  }
+}
+
+/** Apply the entitlement for a purpose directly (used for 100%-off comps). */
+export async function grantPurpose(userId: string, purpose: string): Promise<GrantResult> {
+  return grantForPayment({ id: newId("pay"), userId, purpose });
+}
+
+export type PromoCode = {
+  code: string;
+  percentOff: number;
+  appliesTo: string;
+  active: boolean;
+  maxUses: number | null;
+  uses: number;
+  note: string | null;
+};
+
+export async function listPromoCodes(): Promise<PromoCode[]> {
+  const r = await sqlClient.execute(
+    "SELECT code, percent_off, applies_to, active, max_uses, uses, note FROM promo_codes ORDER BY created_at DESC",
+  );
+  return r.rows.map((x) => ({
+    code: x.code as string,
+    percentOff: normalizePromoPercentOff(x.percent_off),
+    appliesTo: (x.applies_to as string) || "any",
+    active: Number(x.active) === 1,
+    maxUses: x.max_uses == null ? null : Number(x.max_uses),
+    uses: Number(x.uses),
+    note: (x.note as string) ?? null,
+  }));
+}
+
+export async function setPromoActive(code: string, active: boolean): Promise<void> {
+  await sqlClient.execute({ sql: "UPDATE promo_codes SET active = ? WHERE code = ?", args: [active ? 1 : 0, code.trim().toUpperCase()] });
+}
+
+export type GrantResult = { apiKeyPlaintext?: string };
+
+/**
+ * Apply the entitlement for a paid payment row. Idempotent: the caller marks the
+ * payment 'granted' so this only runs once. Returns a fresh API key plaintext
+ * for api_access purchases (shown to the buyer exactly once).
+ */
+export async function grantForPayment(payment: {
+  id: string;
+  userId: string;
+  purpose: string;
+}, db: SqlExecutor = sqlClient): Promise<GrantResult> {
+  if (payment.purpose === "lifetime_membership") {
+    await grantMembership(payment.userId, db);
+    return {};
+  }
+  if (payment.purpose === "play_pass") {
+    await grantPlayPass(payment.userId, db);
+    return {};
+  }
+  if (payment.purpose === "api_access") {
+    const key = await createApiKey(payment.userId, "API access", db);
+    return { apiKeyPlaintext: key.plaintext };
+  }
+  return {};
+}

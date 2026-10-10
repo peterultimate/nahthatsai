@@ -1,0 +1,79 @@
+# Dependencies
+node_modules
+*/node_modules
+
+# Bun
+.bun
+bun.lockb-*.bak
+*.bun.manifest
+
+# Build outputs
+.next
+out
+dist
+build
+.turbo
+
+# Tests & coverage
+coverage
+.vitest
+.nyc_output
+
+# DB local (SQLite)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+packages/db/migrations/_journal.json
+packages/db/migrations-pg/_journal.json
+drizzle/
+
+# Env
+.env
+.env.local
+.env.development.local
+.env.production.local
+.env.test.local
+.env.*.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+bun-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Editor / IDE
+.idea
+.vscode
+*.swp
+*.swo
+*.swn
+*.bak
+*~
+
+# Tmp / scratch
+tmp
+temp
+scratch
+scratchpad*
+.envrc
+
+# Next runtime
+*.tsbuildinfo
+next-env.d.ts.bak
+
+# Seed / media artifacts
+.seed_cache
+packages/seed/cache
+packages/seed/.cache
+services/worker/cache
+*.pid

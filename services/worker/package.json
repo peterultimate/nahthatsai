@@ -1,0 +1,22 @@
+{
+  "name": "@nahthatsai/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "seed:unsplash": "bun jobs/import-unsplash.ts",
+    "seed:ai-variants": "bun jobs/generate-ai-variant.ts",
+    "recalc:leaderboards": "bun jobs/recalc-leaderboards.ts",
+    "warm:feeds": "bun jobs/warm-feeds.ts",
+    "seed:pool": "bun jobs/seed-pool.ts",
+    "draw:prizes": "bun jobs/draw-prizes.ts",
+    "gen:tips": "bun jobs/gen-tips.ts",
+    "daemon:generate-media": "bun jobs/generate-media-daemon.ts"
+  },
+  "dependencies": {
+    "@nahthatsai/db": "workspace:*",
+    "@nahthatsai/seed": "workspace:*",
+    "dotenv": "^16.4.7",
+    "tsx": "^4.19.2"
+  }
+}
