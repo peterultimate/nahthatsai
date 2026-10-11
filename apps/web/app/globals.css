@@ -313,8 +313,8 @@ a:hover { color: #a78bfa; }
   }
   .site-header {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
-    grid-template-areas: "wordmark auth hamburger";
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "wordmark hamburger";
     align-items: center;
     padding: 12px 16px;
     gap: 10px;
@@ -322,7 +322,7 @@ a:hover { color: #a78bfa; }
     min-height: 58px;
   }
   .site-header .wordmark { grid-area: wordmark; min-width: 0; }
-  .site-header .nav-auth { grid-area: auth; justify-self: end; gap: 6px; }
+  .site-header .nav-auth { display: none; }
   .site-header .nav { display: none; }
   .nav-hamburger {
     display: inline-flex;
