@@ -8,9 +8,9 @@ import { escapeHtml } from "./html";
 
 // The base weekly prize pack (top 3 of the weekly leaderboard).
 export const BASE_REWARDS: Array<{ kind: string; label: string }> = [
-  { kind: "bittorrented_lifetime", label: "Free lifetime membership at bittorrented.com" },
-  { kind: "nahthatsai_year", label: "1 year of Nah, that's AI Pro (membership + API credits)" },
-  { kind: "nahthatsai_quarter", label: "3 months of Nah, that's AI Pro (membership + API credits)" },
+  { kind: "codecrafters_vip_2yr", label: "CodeCrafters VIP membership (2 years)" },
+  { kind: "codecrafters_vip_1yr", label: "CodeCrafters VIP membership (1 year)" },
+  { kind: "codecrafters_vip_6mo", label: "CodeCrafters VIP membership (6 months)" },
 ];
 
 const CLAIM_WINDOW_DAYS = 7;

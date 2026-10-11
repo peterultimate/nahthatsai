@@ -28,7 +28,8 @@ export default async function PrizesPage() {
       <div className="hero" style={{ padding: "24px 0" }}>
         <h1>Weekly <span className="ai">prizes</span></h1>
         <p>
-          Finish in the top 3 of the <Link href="/leaderboard/weekly">weekly leaderboard</Link> and win.
+          Finish in the top 3 of the <Link href="/leaderboard/weekly">weekly leaderboard</Link> and win
+          <strong> CodeCrafters VIP memberships</strong>.
           Winners are notified and have <strong>7 days to claim</strong>. Unclaimed prizes roll into a future pack.
         </p>
         <p>

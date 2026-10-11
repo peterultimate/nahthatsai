@@ -55,6 +55,20 @@ export default function RewardsPage() {
         </tbody>
       </table>
 
+      <div className="section-head" style={{ marginTop: 24 }}><h2>Weekly leaderboard prizes</h2></div>
+      <p className="muted" style={{ marginBottom: 12 }}>
+        Climb the <Link href="/leaderboard/weekly">weekly leaderboard</Link> and win <strong>CodeCrafters VIP memberships</strong>.
+        Every member of the winning teams gets VIP access:
+      </p>
+      <div className="prize-pack">
+        <div className="prize-card r1"><div className="rank">1st place</div><div className="reward">CodeCrafters VIP</div><div className="winner">2 years of VIP access</div></div>
+        <div className="prize-card r2"><div className="rank">2nd place</div><div className="reward">CodeCrafters VIP</div><div className="winner">1 year of VIP access</div></div>
+        <div className="prize-card r3"><div className="rank">3rd place</div><div className="reward">CodeCrafters VIP</div><div className="winner">6 months of VIP access</div></div>
+      </div>
+      <p className="muted-sm" style={{ marginTop: 8 }}>
+        Winners are drawn weekly from the top 3 guessers and have 7 days to claim. See the full pack on the <Link href="/prizes">prizes</Link> page.
+      </p>
+
       <div className="section-head" style={{ marginTop: 24 }}><h2>The power-ups</h2></div>
       <div className="prize-pack">
         <div className="prize-card"><div className="rank">💡 Hint</div><div className="reward">A clue</div><div className="winner">Reveals the crowd&apos;s current lean plus a targeted thing to inspect.</div></div>
