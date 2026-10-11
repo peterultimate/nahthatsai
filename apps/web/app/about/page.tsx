@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { Metadata } from "next";
 import { env } from "@/lib/env";
 
@@ -12,23 +11,23 @@ export const metadata: Metadata = {
 const FAQ = [
   {
     q: "What is Nah, that's AI?",
-    a: "A free game and crowd-sourced AI slop detection service. Verified humans vote whether a photorealistic image, video, or post is AI-generated or real, and the aggregated crowd verdict is available on the web, by RSS, and via API.",
+    a: "A crowd-powered photorealistic media classifier. Real humans vote whether an image is AI-generated or real, and the crowd's consensus becomes the permanent ground-truth label, exposed via a public provenance API and RSS feeds.",
   },
   {
     q: "How do you play?",
-    a: "Open Play, look at one item at a time, and call it AI or NOT. You build a streak for consecutive correct guesses and earn power-ups and badges. Playing is free. You get a few rounds as a guest, then a free account keeps your streak and puts you on the leaderboard.",
+    a: "Open Play, look at one image at a time, hover to zoom in on hands, text, and edges, and call it AI or NOT AI. Consecutive correct guesses build a streak that unlocks AI Scans and AI Verdicts. Playing is free. A free account saves your streak and puts you on the leaderboard.",
   },
   {
     q: "Is it free?",
-    a: "Yes. Playing is completely free. An optional $2 lifetime membership adds perks (members-only collection, a badge, free API keys), and $1 one-off API access is available for developers.",
+    a: "Yes. Playing is completely free. Sponsorable prize pools let the community reward the top detectors, and a paid API gives developers programmatic access to the crowd's verdicts.",
   },
   {
     q: "Who builds Nah, that's AI?",
-    a: "It's built and operated by peterultimate. The project is open source on GitHub.",
+    a: "It's built for Banana Hacks 2026 by Homesh Peter Paul and Sun Xiaochi. The project is open source on GitHub.",
   },
   {
     q: "Can I use the crowd verdict in my own app?",
-    a: "Yes. The Crowd-detection API returns the crowd's AI-vs-real verdict programmatically. See the API page to get a key.",
+    a: "Yes. The public API returns the crowd's AI-vs-real verdict and provenance data. See the API docs page to get a key.",
   },
 ];
 
@@ -51,19 +50,21 @@ export default function AboutPage() {
       />
       <h1>About Nah, that's AI</h1>
       <p>
-        <strong>Nah, that's AI</strong> is a free game and crowd-sourced AI slop detection service.
-        Verified humans vote whether a photorealistic image, video, or post is{" "}
+        <strong>Nah, that's AI</strong> is a crowd-powered photorealistic media classifier.
+        By 2027, most images online will be synthetic, and there's no scalable way to know
+        what's real. We turned detection into a game: real humans vote whether each image is{" "}
         <a href="https://en.wikipedia.org/wiki/Synthetic_media" target="_blank" rel="noreferrer">
           AI-generated
         </a>{" "}
-        or real. The aggregated verdict is available on the web, by RSS, and via API.
+        or real, and the crowd's consensus becomes the ground truth. The verdict ships publicly
+        on the web, by RSS, and via a REST API.
       </p>
 
-      <h2>How it works</h2>
+      <h2>The idea in three layers</h2>
       <ul>
-        <li><strong>Play:</strong> guess AI vs. real one item at a time and build a streak.</li>
-        <li><strong>Crowd verdict:</strong> every vote sharpens the community&apos;s AI-vs-real call.</li>
-        <li><strong>Get the data:</strong> read verdicts on the web, by <Link href="/feeds">RSS</Link>, or via the <Link href="/api">API</Link>.</li>
+        <li><strong>The Arena:</strong> a fast, one-image-at-a-time game with a hover-to-zoom loupe, streaks, and AI-powered artifact scans.</li>
+        <li><strong>The Reward Layer:</strong> hit streaks to unlock AI Scans (a vision model highlights suspected artifact regions) and AI Verdicts. Community-sponsored prizes reward the top detectors.</li>
+        <li><strong>The Public Signal:</strong> every image gets a permanent provenance page. The crowd's verdict is exposed via REST API and 12 RSS feeds, so the output of the game is a public dataset.</li>
       </ul>
 
       <h2>Frequently asked questions</h2>
@@ -75,14 +76,12 @@ export default function AboutPage() {
       ))}
 
       <p style={{ marginTop: 24 }}>
-        Built by{" "}
-        <a href="https://peterultimate.com" target="_blank" rel="noreferrer">peterultimate</a> ·{" "}
-        <a href="https://github.com/peterultimate/nahthatsai" target="_blank" rel="noreferrer">Source on GitHub</a> ·{" "}
-        <Link href="/pricing">Pricing</Link> · <Link href="/terms">Terms</Link> · <Link href="/privacy">Privacy</Link>
+        Built for Banana Hacks 2026 by{" "}
+        <strong>Homesh Peter Paul</strong> and <strong>Sun Xiaochi</strong> ·{" "}
+        <a href="https://github.com/peterultimate/nahthatsai" target="_blank" rel="noreferrer">Source on GitHub</a>
       </p>
       <p className="muted-sm">
-        Last updated <time dateTime="2026-07-08">July 8, 2026</time>. Play at{" "}
-        <a href={env.appUrl}>{env.appUrl.replace(/^https?:\/\//, "")}</a>.
+        Play at <a href={env.appUrl}>{env.appUrl.replace(/^https?:\/\//, "")}</a>.
       </p>
     </div>
   );

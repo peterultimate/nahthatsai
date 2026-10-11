@@ -44,6 +44,62 @@ rewards.
 
 ---
 
+## How Was Image AI Used
+
+Image AI is the core of the project, not a side feature. It is used in two
+directions: **generating** the images players classify, and **analyzing** them
+to help players get better.
+
+### 1. AI image generation (the playable pool)
+
+The seed pipeline creates photorealistic AI variants of real photos so the
+arena stays balanced near a 50/50 AI-vs-real split.
+
+- **Model:** `gpt-image-1` (configurable via `AI_IMAGE_MODEL`)
+- **Triggers:**
+  - **Admin dashboard button** at `/api/admin/seed/generate-ai-variants`
+    generates a batch on demand.
+  - **Worker daemon** (`generate-media-daemon`) runs continuously and tops up
+    the AI class whenever it falls below the target ratio.
+
+### 2. AI vision analysis (player powerups)
+
+Players earn AI tools by building streaks. Each call uses the vision model to
+inspect a single image and return text the UI renders.
+
+- **Model:** `gpt-4o-mini` (configurable via `AI_VISION_MODEL`)
+- **Triggers (on-demand, player-initiated):**
+  - **AI Scan** (unlocked every 20 correct votes) — the vision model points out
+    regions worth zooming into (hands, teeth, text, edges, repeated patterns)
+    without giving away the answer.
+  - **AI Verdict** (unlocked every 50 correct votes) — the model states its
+    own AI-vs-real judgment with reasons.
+
+### 3. AI-generated content (supporting features)
+
+- **Game tips** — a worker job (`gen-tips`) drafts short, concrete gameplay
+  tells using `gpt-4o-mini` (or `AI_TEXT_MODEL`), deduplicates them, and
+  inserts them into the tips table that the site TipBar shuffles through.
+- **Newsletter drafting** — admins enter a prompt and the model returns a
+  subject line and HTML body, then the admin approves and sends to verified
+  users.
+
+### Provider abstraction
+
+All AI calls go through a thin provider layer (`ai-provider.ts` in both
+`apps/web` and `packages/seed`). It defaults to OpenAI but can be switched to
+OpenRouter with two env vars:
+
+```
+AI_PROVIDER=openrouter
+OPENROUTER_API_KEY=...
+```
+
+Bare model IDs (e.g. `gpt-4o-mini`) are auto-prefixed with `openai/` when
+routing through OpenRouter, so no model IDs need to change.
+
+---
+
 ## Features, built this weekend
 
 | Layer | What's live |

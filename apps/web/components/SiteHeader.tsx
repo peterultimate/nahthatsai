@@ -31,7 +31,7 @@ const PLATFORM_MENU: MenuItem[] = [
   { href: "/prizes", label: "Prizes" },
   { href: "/refer", label: "Refer friends" },
   { href: "/feeds", label: "RSS / Feeds" },
-  { href: "/api", label: "API docs" },
+  { href: "/api-docs", label: "API docs" },
 ];
 
 function DropdownMenu({

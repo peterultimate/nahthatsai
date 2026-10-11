@@ -126,27 +126,34 @@ export function Arena({ signedIn }: { signedIn: boolean }) {
 
   return (
     <div>
-      <div className="site-header" style={{ borderTop: "1px solid var(--border-1)" }}>
-        <div className="muted-sm">Play mode: one photo at a time</div>
-        <div style={{ display: "flex", gap: 28, fontSize: 13, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--muted-2)" }}>
-          <div>Round <b className="uh" style={{ color: "var(--text)" }}>{pad(round)}</b></div>
-          <div>Score <b className="uh" style={{ color: "var(--human)" }}>{pad(score)}</b></div>
-          <div>Streak <b className="uh" style={{ color: "var(--ai)" }}>{pad(streak)}</b></div>
+      {/* Stats bar */}
+      <div className="arena-stats">
+        <div className="arena-stat">
+          <span className="arena-stat-label">Round</span>
+          <span className="arena-stat-value">{pad(round)}</span>
+        </div>
+        <div className="arena-stat">
+          <span className="arena-stat-label">Score</span>
+          <span className="arena-stat-value" style={{ color: "var(--human)" }}>{pad(score)}</span>
+        </div>
+        <div className="arena-stat">
+          <span className="arena-stat-label">Streak</span>
+          <span className="arena-stat-value" style={{ color: "var(--ai)" }}>{pad(streak)}</span>
         </div>
       </div>
 
-      <div className="hero" style={{ padding: "28px 24px 4px" }}>
-        <h1 style={{ fontSize: "clamp(22px,3vw,34px)" }}>Is it AI, or not?</h1>
-        <p>Call it. No takebacks.</p>
+      {/* Heading */}
+      <div className="arena-head">
+        <h1>Is it AI, or not?</h1>
+        <p className="muted">Call it. No takebacks.</p>
+        {!signedIn && (
+          <p className="arena-guest">
+            Playing as guest · <Link href="/signup">Join free</Link> to save your streak.
+          </p>
+        )}
       </div>
 
-      {!signedIn && (
-        <div className="muted-sm" style={{ textAlign: "center", padding: "0 24px" }}>
-          🎮 Playing as guest · <Link href="/signup">Join free</Link> to save your streak & rank.
-        </div>
-      )}
-
-      <div style={{ maxWidth: 460, margin: "0 auto", padding: "12px 24px 40px" }}>
+      <div className="arena-stage">
         {loading ? (
           <div className="empty">Loading…</div>
         ) : !current ? (
@@ -163,47 +170,67 @@ export function Arena({ signedIn }: { signedIn: boolean }) {
               )}
               {reveal && (
                 <div className="arena-overlay">
-                  <div className="arena-truth" style={{ color: reveal.truth === "ai" ? "var(--ai)" : "var(--human)" }}>
+                  <div
+                    className={`arena-truth ${reveal.truth === "ai" ? "is-ai" : "is-real"}`}
+                  >
                     {reveal.truth === "ai" ? "AI" : "NOT AI"}
                   </div>
                   <div className={`reveal-verdict ${reveal.correct ? "correct" : "wrong"}`}>
                     {reveal.correct ? "You called it" : "Fooled you"}
                   </div>
-                  <div style={{ width: "60%" }}>
+                  <div className="arena-crowd">
                     <div className="crowd-bar"><span style={{ width: `${reveal.aiPct}%` }} /></div>
-                    <div className="crowd-caption" style={{ textAlign: "center" }}>{reveal.aiPct}% of voters said AI</div>
+                    <div className="crowd-caption">{reveal.aiPct}% said AI · {reveal.total} votes</div>
                   </div>
                 </div>
               )}
             </div>
+
             {!reveal && (
               hintText ? (
                 <div className="powerup-result" style={{ margin: 0 }}>
-                  <div className="powerup-result-h">💡 Hint</div>
+                  <div className="powerup-result-h">Hint</div>
                   <div className="powerup-result-b">{hintText}</div>
                 </div>
               ) : hints > 0 ? (
-                <button className="powerup-btn ready" style={{ alignSelf: "center" }} disabled={hintBusy} onClick={useHint}>
-                  {hintBusy ? "…" : `💡 Use a hint (${hints})`}
+                <button className="powerup-btn ready" disabled={hintBusy} onClick={useHint}>
+                  {hintBusy ? "…" : `Use a hint (${hints})`}
                 </button>
               ) : null
             )}
+
             <div className="vote-row">
-              <button className="vote-btn ai" disabled={busy || !!reveal} onClick={() => vote("ai")}>AI</button>
-              <button className="vote-btn human" disabled={busy || !!reveal} onClick={() => vote("not_ai")}>NOT AI</button>
+              <button
+                className={`vote-btn ai ${reveal && reveal.truth === "ai" ? "picked-ai" : ""} ${reveal && reveal.truth !== "ai" ? "dim" : ""}`}
+                disabled={busy || !!reveal}
+                onClick={() => vote("ai")}
+              >
+                <span className="vote-dot" /> AI
+              </button>
+              <button
+                className={`vote-btn human ${reveal && reveal.truth === "not_ai" ? "picked-human" : ""} ${reveal && reveal.truth !== "not_ai" ? "dim" : ""}`}
+                disabled={busy || !!reveal}
+                onClick={() => vote("not_ai")}
+              >
+                <span className="vote-dot" /> NOT AI
+              </button>
             </div>
+
             {reveal && earned && (
-              <div className="earned-toast" style={{ fontSize: 13 }}>
+              <div className="earned-toast">
                 {earned.emoji} {earned.label}, saved to your rewards!
               </div>
             )}
-            <div style={{ textAlign: "center", minHeight: 56 }}>
+
+            <div className="arena-next">
               {reveal ? (
-                <button className="btn btn-pill btn-primary" onClick={next} style={{ animation: "popIn 0.35s ease both" }}>
+                <button className="btn btn-pill btn-primary" onClick={next}>
                   NEXT →
                 </button>
               ) : (
-                <div className="muted-sm" style={{ letterSpacing: "0.14em", textTransform: "uppercase" }}>Trust your eyes</div>
+                <span className="muted-sm" style={{ letterSpacing: "0.14em", textTransform: "uppercase" }}>
+                  Trust your eyes
+                </span>
               )}
             </div>
           </div>
@@ -216,7 +243,7 @@ export function Arena({ signedIn }: { signedIn: boolean }) {
         onCancel={(e) => e.preventDefault()}
         onClose={() => setShowNag(false)}
       >
-        <h2 style={{ marginTop: 0 }}>Enjoying it? 🎉</h2>
+        <h2 style={{ marginTop: 0 }}>Enjoying it?</h2>
         <p className="muted">
           You&apos;re playing as a guest. Create a <strong>free account</strong> to save your streak,
           climb the leaderboard, earn power-ups, and lose these interruptions.
