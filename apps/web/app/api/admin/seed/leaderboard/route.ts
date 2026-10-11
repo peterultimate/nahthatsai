@@ -18,6 +18,15 @@ const DEMO_NAMES = [
   "Ari Mitchell", "Kai Thompson", "Eden Clark", "Zion Walker", "Phoenix Rao",
 ];
 
+// The featured top user on the leaderboard.
+const TOP_USER = {
+  name: "Homesh Peter Paul",
+  email: "homesh@nahthatsai.example",
+  // High accuracy + more guesses than everyone else so they sit at #1.
+  accuracy: 0.94,
+  guesses: 60,
+};
+
 // Generate a deterministic-ish password hash for demo users (password not exposed).
 async function demoPassword() {
   return hashPassword(randomToken(24));
@@ -53,12 +62,14 @@ export async function POST(req: Request) {
   const created: string[] = [];
   const password = await demoPassword();
 
-  for (let i = 0; i < userCount; i++) {
-    const name = DEMO_NAMES[i % DEMO_NAMES.length]!;
-    const email = `demo${i + 1}@nahthatsai.example`;
-    const normalized = email.toLowerCase();
+  async function seedUser(opts: {
+    name: string;
+    email: string;
+    accuracy: number;
+    numGuesses: number;
+  }): Promise<string> {
+    const normalized = opts.email.toLowerCase();
 
-    // Skip if a demo user with this email already exists (idempotent).
     const existing = await sqlClient.execute({
       sql: "SELECT id FROM users WHERE email_normalized = ?",
       args: [normalized],
@@ -73,36 +84,26 @@ export async function POST(req: Request) {
               (id, email, email_normalized, password_hash, display_name, status, role,
                email_verified_at, created_at)
               VALUES (?, ?, ?, ?, ?, 'active', 'user', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-        args: [userId, email, normalized, password, name],
+        args: [userId, opts.email, normalized, password, opts.name],
       });
       await sqlClient.execute({
         sql: "INSERT OR IGNORE INTO user_stats (user_id) VALUES (?)",
         args: [userId],
       });
     }
-    created.push(userId);
 
-    // Accuracy profile: weighted toward mid-high so the leaderboard looks real.
-    const accProfile = 0.5 + Math.random() * 0.42; // 50% - 92%
-    const numGuesses = Math.min(
-      guessesPerUser + Math.floor(Math.random() * 15) - 7,
-      media.length,
-    );
-
-    // Pick a random subset of media for this user.
-    const shuffled = [...media].sort(() => Math.random() - 0.5).slice(0, numGuesses);
+    const count = Math.min(opts.numGuesses, media.length);
+    const shuffled = [...media].sort(() => Math.random() - 0.5).slice(0, count);
     let streak = 0;
 
     for (const m of shuffled) {
-      // Skip if this user already guessed this media.
       const dup = await sqlClient.execute({
         sql: "SELECT 1 FROM guesses WHERE media_id = ? AND user_id = ?",
         args: [m.id, userId],
       });
       if (dup.rows.length > 0) continue;
 
-      const correct = Math.random() < accProfile;
-      // If correct, guess matches truth_label; if wrong, guess the opposite.
+      const correct = Math.random() < opts.accuracy;
       const guess = correct ? m.truth_label : (m.truth_label === "ai" ? "not_ai" : "ai");
       const isCorrect = guess === m.truth_label ? 1 : 0;
 
@@ -117,7 +118,6 @@ export async function POST(req: Request) {
           userId,
           guess,
           isCorrect,
-          // Spread guesses over the last ~14 days so timestamps look organic.
           `-${Math.floor(Math.random() * 20160)}`,
         ],
       });
@@ -125,6 +125,36 @@ export async function POST(req: Request) {
       if (isCorrect) streak++;
       else streak = 0;
     }
+
+    return userId;
+  }
+
+  // Seed the featured top user first with the best stats.
+  created.push(await seedUser({
+    name: TOP_USER.name,
+    email: TOP_USER.email,
+    accuracy: TOP_USER.accuracy,
+    numGuesses: TOP_USER.guesses,
+  }));
+
+  // Seed the rest of the demo users with lower accuracy profiles.
+  for (let i = 0; i < userCount; i++) {
+    const name = DEMO_NAMES[i % DEMO_NAMES.length]!;
+    const email = `demo${i + 1}@nahthatsai.example`;
+
+    // Accuracy profile: weighted toward mid-high, but always below the top user.
+    const accProfile = 0.5 + Math.random() * 0.38; // 50% - 88%
+    const numGuesses = Math.min(
+      guessesPerUser + Math.floor(Math.random() * 15) - 7,
+      media.length,
+    );
+
+    created.push(await seedUser({
+      name,
+      email,
+      accuracy: accProfile,
+      numGuesses,
+    }));
   }
 
   // Recompute stats for all created users.
@@ -132,11 +162,12 @@ export async function POST(req: Request) {
     await recomputeUserStats(uid).catch(() => {});
   }
 
-  await audit(auth.user.id, "seed.leaderboard", "user_stats", "bulk", { userCount, guessesPerUser });
+  await audit(auth.user.id, "seed.leaderboard", "user_stats", "bulk", { userCount, guessesPerUser, topUser: TOP_USER.name });
 
   return NextResponse.json({
     ok: true,
     usersCreated: created.length,
     guessesPerUser,
+    topUser: TOP_USER.name,
   });
 }
