@@ -4,6 +4,7 @@ import { SEED_CATEGORIES } from "./prompts";
 import { createAiVariant, slugify } from "./index";
 import { storeRemoteImage } from "./store-remote-image";
 import { aiApiKey } from "./ai-provider";
+import { getBoolSetting, SETTINGS } from "./app-settings";
 
 async function tagId(client: Client, slug: string): Promise<string | null> {
   const r = await client.execute({ sql: "SELECT id FROM tags WHERE slug = ?", args: [slug] });
@@ -67,6 +68,7 @@ export async function generateContinuousBatch(opts: { count?: number; client?: C
   const client = opts.client ?? getClient();
   const count = Math.max(1, opts.count ?? 3);
   const haveAi = !!aiApiKey();
+  const autoGenerateAi = await getBoolSetting(client, SETTINGS.AUTO_GENERATE_AI);
   let ai = 0;
   let real = 0;
 
@@ -77,11 +79,16 @@ export async function generateContinuousBatch(opts: { count?: number; client?: C
     // Always top up the CURRENTLY-UNDERREPRESENTED class so the pool trends 50/50.
     // Prefer AI on ties (it's the harder half to source).
     const wantAi = aiN <= realN;
-    // Critical: if AI is the class we need but we can't make it (no OPENAI_API_KEY),
-    // SKIP this iteration. Falling back to a real photo here only deepens the skew
-    // — which is exactly what flooded the pool with not-AI before.
-    if (wantAi && !haveAi) {
-      console.warn("[continuous] AI is underrepresented but OPENAI_API_KEY is missing — skipping (not adding a real photo, to avoid worsening the imbalance)");
+    // Critical: if AI is the class we need but we can't make it (no key or the
+    // admin toggle is off), SKIP this iteration. Falling back to a real photo
+    // here only deepens the skew — which is exactly what flooded the pool with
+    // not-AI before.
+    if (wantAi && (!haveAi || !autoGenerateAi)) {
+      if (!autoGenerateAi) {
+        console.warn("[continuous] AI is underrepresented but auto_generate_ai is OFF — skipping");
+      } else {
+        console.warn("[continuous] AI is underrepresented but OPENAI_API_KEY is missing — skipping");
+      }
       continue;
     }
     try {

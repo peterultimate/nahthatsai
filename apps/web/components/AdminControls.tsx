@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export function AdminTagCreate() {
@@ -106,6 +106,19 @@ export function AdminSeedControls() {
   const [busy, setBusy] = useState(false);
   const [query, setQuery] = useState("portrait photography");
   const [count, setCount] = useState(10);
+  const [autoGenAi, setAutoGenAi] = useState<boolean>(false);
+  const [autoGenLoaded, setAutoGenLoaded] = useState(false);
+
+  // Load the current auto_generate_ai toggle state.
+  useEffect(() => {
+    fetch("/api/admin/settings")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.ok) setAutoGenAi(d.autoGenerateAi);
+      })
+      .catch(() => {})
+      .finally(() => setAutoGenLoaded(true));
+  }, []);
 
   async function run(path: string, body: Record<string, unknown>) {
     setBusy(true);
@@ -121,10 +134,44 @@ export function AdminSeedControls() {
     if (data.ok) router.refresh();
   }
 
+  async function toggleAutoGenAi(on: boolean) {
+    setBusy(true);
+    setMsg(null);
+    const res = await fetch("/api/admin/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ autoGenerateAi: on }),
+    });
+    const data = await res.json();
+    setBusy(false);
+    setAutoGenAi(on);
+    setMsg(data.ok ? `Auto AI generation ${on ? "enabled" : "disabled"}.` : `Error: ${data.error}`);
+  }
+
   return (
     <div className="form-card" style={{ margin: "12px 0" }}>
       <h1 style={{ fontSize: 18 }}>Run seed jobs</h1>
       <p className="muted-sm">Requires UNSPLASH_ACCESS_KEY / OPENAI_API_KEY (and R2_* for AI variants). Larger batches: use the worker CLI.</p>
+
+      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", margin: "10px 0", padding: "10px 12px", background: "var(--panel-alt)", borderRadius: 8 }}>
+        <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={autoGenAi}
+            disabled={!autoGenLoaded || busy}
+            onChange={(e) => toggleAutoGenAi(e.target.checked)}
+          />
+          <span>
+            <strong>Auto-generate AI images</strong>
+            <span className="muted-sm" style={{ display: "block" }}>
+              {autoGenAi
+                ? "ON: the media daemon will ping OpenRouter/OpenAI to top up AI images."
+                : "OFF: the daemon will only add real photos and skip AI generation."}
+            </span>
+          </span>
+        </label>
+      </div>
+
       <div className="field">
         <label>Unsplash query</label>
         <input value={query} onChange={(e) => setQuery(e.target.value)} />
