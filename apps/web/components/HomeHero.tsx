@@ -25,10 +25,10 @@ export function HomeHero({ tags }: { tags: TagRow[] }) {
           Nah, that&apos;s <span className="ai">AI slop.</span>
         </h1>
         <p data-grid-avoid style={GUARD_STYLE}>
-          <strong>Built for BananaHack 2026.</strong> A crowd-powered game where
+          <strong>A crowd-powered game</strong> where
           you guess whether images are AI-generated or real. Rack up streaks,
           climb the leaderboard, and publish your own images for the community
-          to judge: by web, RSS, or API.
+          to judge by web, RSS, or API.
         </p>
         <form className="hero-search" action="/search" method="get">
           <input

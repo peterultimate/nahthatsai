@@ -55,6 +55,7 @@ ehthumbs.db
 # Editor / IDE
 .idea
 .vscode
+.trae
 *.swp
 *.swo
 *.swn

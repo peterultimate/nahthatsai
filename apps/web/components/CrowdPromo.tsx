@@ -16,7 +16,7 @@ export function CrowdPromo({
   const fmt = (n: number) => n.toLocaleString();
   return (
     <section className="promo">
-      <div className="eyebrow">Built for BananaHack 2026 · The Platform</div>
+      <div className="eyebrow">Built for BananaHack 2026 </div>
       <h2>
         One crowd. <span className="grad">Every slop verdict you need.</span>
       </h2>

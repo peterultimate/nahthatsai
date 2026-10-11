@@ -13,6 +13,8 @@ AI-powered tools that zoom in on the artifacts.
 What starts as a game ships as a labeled dataset, a public provenance API, and
 RSS signal feeds anyone can subscribe to.
 
+![aibaby](apps/web/public/aibaby.gif)
+
 ---
 
 ## The problem
