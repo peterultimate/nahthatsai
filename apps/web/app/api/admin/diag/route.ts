@@ -41,11 +41,31 @@ export async function GET() {
           ORDER BY truth_label, status`,
   });
 
+  const tsStats = await sqlClient.execute({
+    sql: `SELECT seed_source, truth_label,
+                 COUNT(*) AS n,
+                 MIN(created_at) AS earliest,
+                 MAX(created_at) AS latest
+          FROM media
+          GROUP BY seed_source, truth_label
+          ORDER BY seed_source, truth_label`,
+  });
+
+  const unsplashSample = await sqlClient.execute({
+    sql: `SELECT id, slug, title, status, truth_label, media_url, created_at
+          FROM media
+          WHERE seed_source = 'unsplash'
+          ORDER BY created_at DESC
+          LIMIT 10`,
+  });
+
   return NextResponse.json({
     ok: true,
     bySourceStatus: bySourceStatus.rows,
     recentAi: recentAi.rows,
     hiddenAi: hiddenAi.rows,
     poolBalance: poolBalance.rows,
+    tsStats: tsStats.rows,
+    unsplashSample: unsplashSample.rows,
   });
 }
