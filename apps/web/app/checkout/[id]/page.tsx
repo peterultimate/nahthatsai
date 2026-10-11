@@ -16,7 +16,7 @@ export default async function CheckoutPage({
   if (!user) redirect("/login");
 
   const res = await sqlClient.execute({
-    sql: `SELECT id, user_id, purpose, amount_usd, blockchain, payment_address, crypto_amount
+    sql: `SELECT id, user_id, purpose, amount_usd
           FROM payments WHERE id = ? LIMIT 1`,
     args: [id],
   });
@@ -29,9 +29,6 @@ export default async function CheckoutPage({
         paymentId={p.id as string}
         purpose={p.purpose as string}
         amountUsd={Number(p.amount_usd)}
-        blockchain={p.blockchain as string}
-        address={(p.payment_address as string) || ""}
-        cryptoAmount={(p.crypto_amount as string) || ""}
       />
     </div>
   );

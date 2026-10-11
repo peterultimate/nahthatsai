@@ -81,7 +81,7 @@ export default async function PrizesPage() {
 
       <div className="section-head" style={{ marginTop: 24 }}><h2>Sponsor a week 💛</h2></div>
       <p className="muted">
-        Put up a prize and get a shout-out on this page + in the winner announcement. Pay in crypto via CoinPay
+        Put up a prize and get a shout-out on this page + in the winner announcement. Pay securely via Lemon Squeezy
         (min ${MIN_SPONSOR_USD}). Your prize joins this week&apos;s pack and goes to a top guesser.
       </p>
       <SponsorForm minUsd={MIN_SPONSOR_USD} loggedIn={!!user} />

@@ -2,7 +2,7 @@ import "server-only";
 import { sqlClient } from "./db";
 import { newId } from "@nahthatsai/db";
 import { env } from "./env";
-import { createCoinpayPayment, getCoinpayPayment, isPaymentPaid } from "./coinpay";
+import { createLemonSqueezyCheckout, getLemonSqueezyCheckout, isCheckoutPaid } from "./lemonsqueezy";
 import { currentWeekStart } from "./prizes";
 import { sendEmail } from "./email";
 import { escapeHtml } from "./html";
@@ -48,13 +48,12 @@ export type CreateSponsorInput = {
   prizeLabel: string;
   message?: string | null;
   amountUsd: unknown;
-  blockchain: string;
 };
 
 export async function createSponsorship(
   input: CreateSponsorInput,
-): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
-  if (!env.coinpayConfigured) return { ok: false, error: "Payments are not configured." };
+): Promise<{ ok: true; id: string; checkoutUrl: string } | { ok: false; error: string }> {
+  if (!env.paymentsConfigured) return { ok: false, error: "Payments are not configured." };
   const name = input.sponsorName.trim().slice(0, 60);
   const prize = input.prizeLabel.trim().slice(0, 120);
   if (!name) return { ok: false, error: "Sponsor name is required." };
@@ -67,26 +66,26 @@ export async function createSponsorship(
 
   const id = newId("spo");
   const period = currentWeekStart();
-  const created = await createCoinpayPayment({
-    amountUsd: amount,
-    blockchain: input.blockchain,
-    description: `Nah, that's AI weekly prize sponsorship: ${name}`,
-    metadata: { purpose: "prize_sponsorship", sponsorship_id: id, app: "nahthatsai.com" },
+  const created = await createLemonSqueezyCheckout({
+    variantId: env.lemonSqueezy.variants.sponsor,
+    customPriceCents: Math.round(amount * 100),
+    custom: { purpose: "prize_sponsorship", sponsorship_id: id, app: "nahthatsai.com" },
+    redirectUrl: `${env.appUrl}/sponsor/checkout/${id}`,
   });
   if (!created.ok) return { ok: false, error: created.error };
-  const p = created.payment;
+  const checkout = created.checkout;
 
   await sqlClient.execute({
     sql: `INSERT INTO prize_sponsorships
       (id, user_id, sponsor_name, sponsor_url, prize_label, message, amount_usd, blockchain,
        coinpay_payment_id, payment_address, crypto_amount, status, period_start)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+      VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL, NULL, 'pending', ?)`,
     args: [
       id, input.userId, name, sponsorUrl.url, prize, input.message?.trim()?.slice(0, 200) || null,
-      amount, input.blockchain, p.id, p.payment_address ?? null, p.crypto_amount ?? null, period,
+      amount, checkout.id, period,
     ],
   });
-  return { ok: true, id };
+  return { ok: true, id, checkoutUrl: checkout.url };
 }
 
 export async function getSponsorship(id: string, userId?: string): Promise<Sponsorship | null> {
@@ -99,7 +98,7 @@ export async function getSponsorship(id: string, userId?: string): Promise<Spons
   return r.rows[0] ? rowToSponsorship(r.rows[0] as Record<string, unknown>) : null;
 }
 
-/** Poll CoinPay; activate the sponsorship on payment (idempotent). */
+/** Poll Lemon Squeezy; activate the sponsorship on payment (idempotent). */
 export async function checkSponsorship(id: string, userId?: string): Promise<{ status: string } | null> {
   const r = await sqlClient.execute({
     sql: userId
@@ -111,16 +110,16 @@ export async function checkSponsorship(id: string, userId?: string): Promise<{ s
   if (!row) return null;
   if (row.status === "active" || row.status === "fulfilled") return { status: "active" };
 
-  const cp = await getCoinpayPayment(row.coinpay_payment_id as string);
-  if (!cp || !isPaymentPaid(cp.status)) return { status: cp?.status || "pending" };
+  const ls = await getLemonSqueezyCheckout(row.coinpay_payment_id as string);
+  if (!ls || !isCheckoutPaid(ls.status)) return { status: ls?.status || "pending" };
 
   const flip = await sqlClient.execute({
     sql: "UPDATE prize_sponsorships SET status = 'active', paid_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'pending'",
     args: [id],
   });
   if (flip.rowsAffected > 0) {
-    const sponsorNameHtml = escapeHtml(row.sponsor_name);
-    const prizeLabelHtml = escapeHtml(row.prize_label);
+    const sponsorNameHtml = escapeHtml(row.sponsor_name as string);
+    const prizeLabelHtml = escapeHtml(row.prize_label as string);
     for (const admin of env.adminEmails) {
       await sendEmail({
         to: admin,

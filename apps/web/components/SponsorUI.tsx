@@ -2,8 +2,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CopyButton } from "./CopyButton";
-import { COINPAY_BLOCKCHAINS, coinpayBlockchainLabel } from "@/lib/coinpay-blockchains";
 
 export function SponsorForm({ minUsd, loggedIn }: { minUsd: number; loggedIn: boolean }) {
   const router = useRouter();
@@ -32,7 +30,6 @@ export function SponsorForm({ minUsd, loggedIn }: { minUsd: number; loggedIn: bo
         prizeLabel: fd.get("prizeLabel"),
         message: fd.get("message"),
         amountUsd: Number(fd.get("amountUsd")),
-        blockchain: fd.get("blockchain"),
       }),
     });
     const data = await res.json();
@@ -41,7 +38,8 @@ export function SponsorForm({ minUsd, loggedIn }: { minUsd: number; loggedIn: bo
       setErr(data.error || "Could not start checkout.");
       return;
     }
-    router.push(`/sponsor/checkout/${data.sponsorshipId}`);
+    // Redirect to the hosted Lemon Squeezy checkout.
+    window.location.href = data.checkoutUrl;
   }
 
   return (
@@ -62,17 +60,9 @@ export function SponsorForm({ minUsd, loggedIn }: { minUsd: number; loggedIn: bo
         <label htmlFor="message">Short message (optional)</label>
         <input id="message" name="message" maxLength={200} placeholder="Shown with your shout-out" />
       </div>
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-        <div className="field" style={{ flex: 1, minWidth: 140 }}>
-          <label htmlFor="amountUsd">Sponsorship (USD, min ${minUsd})</label>
-          <input id="amountUsd" name="amountUsd" type="number" min={minUsd} step="1" defaultValue={minUsd} required />
-        </div>
-        <div className="field" style={{ minWidth: 140 }}>
-          <label htmlFor="blockchain">Pay with</label>
-          <select id="blockchain" name="blockchain" defaultValue="SOL">
-            {COINPAY_BLOCKCHAINS.map((c) => <option key={c} value={c}>{coinpayBlockchainLabel(c)}</option>)}
-          </select>
-        </div>
+      <div className="field">
+        <label htmlFor="amountUsd">Sponsorship (USD, min ${minUsd})</label>
+        <input id="amountUsd" name="amountUsd" type="number" min={minUsd} step="1" defaultValue={minUsd} required />
       </div>
       {err && <div className="form-error">{err}</div>}
       <button className="btn btn-primary" type="submit" disabled={busy}>
@@ -85,16 +75,10 @@ export function SponsorForm({ minUsd, loggedIn }: { minUsd: number; loggedIn: bo
 export function SponsorCheckoutPoller({
   id,
   amountUsd,
-  blockchain,
-  address,
-  cryptoAmount,
   prizeLabel,
 }: {
   id: string;
   amountUsd: number;
-  blockchain: string;
-  address: string;
-  cryptoAmount: string;
   prizeLabel: string;
 }) {
   const [status, setStatus] = useState("pending");
@@ -107,14 +91,14 @@ export function SponsorCheckoutPoller({
         setStatus(data.status);
         if (data.status === "active") clearInterval(t);
       }
-    }, 5000);
+    }, 4000);
     return () => clearInterval(t);
   }, [id, status]);
 
   if (status === "active") {
     return (
       <div className="form-card container-narrow">
-        <h1>Sponsorship confirmed ✓</h1>
+        <h1>Sponsorship confirmed</h1>
         <div className="form-ok">Thank you! Your prize, <strong>{prizeLabel}</strong>, is now part of this week&apos;s pack, with your shout-out on the prizes page.</div>
         <p style={{ marginTop: 16 }}><Link href="/prizes" className="btn btn-primary">See the prizes →</Link></p>
       </div>
@@ -122,23 +106,12 @@ export function SponsorCheckoutPoller({
   }
   return (
     <div className="form-card container-narrow">
-      <h1>Send ${amountUsd} in {blockchain.replace("_", " ")}</h1>
-      <p className="muted">Send exactly this amount to the address below. This page updates automatically once it confirms on-chain.</p>
-      <div className="field">
-        <label>Amount</label>
-        <div style={{ display: "flex", gap: 8 }}>
-          <input readOnly value={cryptoAmount} style={{ fontFamily: "monospace" }} />
-          <CopyButton text={cryptoAmount} label="Copy" />
-        </div>
-      </div>
-      <div className="field">
-        <label>Payment address</label>
-        <div style={{ display: "flex", gap: 8 }}>
-          <input readOnly value={address} style={{ fontFamily: "monospace" }} />
-          <CopyButton text={address} label="Copy" />
-        </div>
-      </div>
-      <div className="notice"><span className="rss-title">Waiting for payment…</span><div className="muted-sm">Status: {status}. Keep this tab open.</div></div>
+      <h1>Waiting for payment</h1>
+      <p className="muted">
+        Complete your ${amountUsd} sponsorship at the checkout. This page updates automatically once your
+        payment is confirmed.
+      </p>
+      <div className="notice"><span className="rss-title">Checking payment status…</span><div className="muted-sm">Status: {status}. Keep this tab open after you finish paying.</div></div>
     </div>
   );
 }

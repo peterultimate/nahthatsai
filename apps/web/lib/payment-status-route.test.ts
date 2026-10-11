@@ -4,8 +4,8 @@ const mocks = vi.hoisted(() => ({
   execute: vi.fn(),
   transaction: vi.fn(),
   getCurrentUser: vi.fn(),
-  getCoinpayPayment: vi.fn(),
-  isPaymentPaid: vi.fn(),
+  getLemonSqueezyCheckout: vi.fn(),
+  isCheckoutPaid: vi.fn(),
   grantPaymentInTransaction: vi.fn(),
   recordPromoRedemption: vi.fn(),
   txClose: vi.fn(),
@@ -19,9 +19,9 @@ vi.mock("@/lib/session", () => ({
   getCurrentUser: mocks.getCurrentUser,
 }));
 
-vi.mock("@/lib/coinpay", () => ({
-  getCoinpayPayment: mocks.getCoinpayPayment,
-  isPaymentPaid: mocks.isPaymentPaid,
+vi.mock("@/lib/lemonsqueezy", () => ({
+  getLemonSqueezyCheckout: mocks.getLemonSqueezyCheckout,
+  isCheckoutPaid: mocks.isCheckoutPaid,
 }));
 
 vi.mock("@/lib/entitlements", () => ({

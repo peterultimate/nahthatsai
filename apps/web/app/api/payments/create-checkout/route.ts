@@ -3,23 +3,22 @@ import { getCurrentUser } from "@/lib/session";
 import { env } from "@/lib/env";
 import { newId } from "@nahthatsai/db";
 import { sqlClient } from "@/lib/db";
-import { createCoinpayPayment } from "@/lib/coinpay";
-import { normalizeCoinpayBlockchain } from "@/lib/coinpay-blockchains";
+import { createLemonSqueezyCheckout } from "@/lib/lemonsqueezy";
 import { quotePromo, grantFreePromo } from "@/lib/entitlements";
 import { rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
-const PURPOSES: Record<string, { amount: () => number; label: string }> = {
-  api_access: { amount: () => env.priceApiAccessUsd, label: "Nah, that's AI API access" },
-  lifetime_membership: { amount: () => env.priceLifetimeUsd, label: "Nah, that's AI lifetime membership" },
-  play_pass: { amount: () => env.pricePlayPassUsd, label: "Nah, that's AI play pass" },
+const PURPOSES: Record<string, { amount: () => number; label: string; variantId: () => string }> = {
+  api_access: { amount: () => env.priceApiAccessUsd, label: "Nah, that's AI API access", variantId: () => env.lemonSqueezy.variants.apiAccess },
+  lifetime_membership: { amount: () => env.priceLifetimeUsd, label: "Nah, that's AI lifetime membership", variantId: () => env.lemonSqueezy.variants.lifetimeMembership },
+  play_pass: { amount: () => env.pricePlayPassUsd, label: "Nah, that's AI play pass", variantId: () => env.lemonSqueezy.variants.playPass },
 };
 
 export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ ok: false, error: "Sign in first." }, { status: 401 });
-  if (!env.coinpayConfigured) {
+  if (!env.paymentsConfigured) {
     return NextResponse.json({ ok: false, error: "Payments are not configured." }, { status: 400 });
   }
   if (!(await rateLimit(`checkout:${user.id}`, 10, 5 * 60_000)).ok) {
@@ -28,10 +27,8 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => ({}));
   const purpose = String(body.purpose || "");
-  const blockchain = normalizeCoinpayBlockchain(body.blockchain);
   const spec = PURPOSES[purpose];
   if (!spec) return NextResponse.json({ ok: false, error: "Unknown purpose." }, { status: 400 });
-  if (!blockchain) return NextResponse.json({ ok: false, error: "Unsupported payment network." }, { status: 400 });
 
   if (purpose === "lifetime_membership" && user.isMember) {
     return NextResponse.json({ ok: false, error: "You're already a lifetime member." }, { status: 400 });
@@ -76,22 +73,22 @@ export async function POST(req: Request) {
   }
 
   const paymentId = newId("pay");
-  const created = await createCoinpayPayment({
-    amountUsd: finalUsd,
-    blockchain,
-    description: percentOff > 0 ? `${spec.label} (${percentOff}% off)` : spec.label,
-    metadata: { user_id: user.id, purpose, payment_ref: paymentId, app: "nahthatsai.com" },
+  const created = await createLemonSqueezyCheckout({
+    variantId: spec.variantId(),
+    email: user.email,
+    custom: { user_id: user.id, purpose, payment_ref: paymentId, app: "nahthatsai.com" },
+    redirectUrl: `${env.appUrl}/checkout/${paymentId}`,
   });
   if (!created.ok) {
     return NextResponse.json({ ok: false, error: created.error }, { status: 502 });
   }
-  const p = created.payment;
+  const checkout = created.checkout;
 
   await sqlClient.execute({
     sql: `INSERT INTO payments (id, user_id, purpose, amount_usd, blockchain, coinpay_payment_id, payment_address, crypto_amount, status, promo_code)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
-    args: [paymentId, user.id, purpose, finalUsd, blockchain, p.id, p.payment_address ?? null, p.crypto_amount ?? null, promoCode],
+          VALUES (?, ?, ?, ?, NULL, ?, NULL, NULL, 'pending', ?)`,
+    args: [paymentId, user.id, purpose, finalUsd, checkout.id, promoCode],
   });
 
-  return NextResponse.json({ ok: true, paymentId, finalUsd, percentOff });
+  return NextResponse.json({ ok: true, paymentId, checkoutUrl: checkout.url, finalUsd, percentOff });
 }

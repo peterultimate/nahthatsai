@@ -5,7 +5,7 @@ import { env } from "@/lib/env";
 export const metadata: Metadata = {
   title: "Pricing",
   description:
-    "Nah, that's AI is free to play. Optional submit access, lifetime membership, and one-off API access are available via crypto.",
+    "Nah, that's AI is free to play. Optional submit access, lifetime membership, and one-off API access are available via Lemon Squeezy.",
   alternates: { canonical: "/pricing" },
 };
 
@@ -30,7 +30,7 @@ export default function PricingPage() {
         }}
       />
       <h1>Pricing</h1>
-      <p><strong>Playing is free.</strong> Paid tiers are optional and pay-once (crypto via CoinPay), no subscriptions.</p>
+      <p><strong>Playing is free.</strong> Paid tiers are optional and pay-once via Lemon Squeezy, no subscriptions.</p>
 
       <div className="stat-tiles" style={{ marginTop: 16 }}>
         <div className="tile"><div className="val human">Free</div><div className="lbl">Play, streaks, leaderboards</div></div>
@@ -49,7 +49,7 @@ export default function PricingPage() {
 
       <h2>How does payment work?</h2>
       <p>
-        Payments are one-time and processed in cryptocurrency via CoinPay. Digital access grants are
+        Payments are one-time and processed via Lemon Squeezy (cards, Apple Pay, and more). Digital access grants are
         non-refundable except where required by law. Get started on the{" "}
         <Link href="/membership">membership page</Link>.
       </p>

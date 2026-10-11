@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
 import { sqlClient } from "@/lib/db";
-import { getCoinpayPayment, isPaymentPaid } from "@/lib/coinpay";
+import { getLemonSqueezyCheckout, isCheckoutPaid } from "@/lib/lemonsqueezy";
 import { recordPromoRedemption } from "@/lib/entitlements";
 import { grantPaymentInTransaction } from "@/lib/payment-grant";
 
@@ -27,22 +27,22 @@ export async function GET(req: Request) {
 
   const alreadyConfirmed = p.status === "confirmed";
   if (!alreadyConfirmed) {
-    const cp = await getCoinpayPayment(p.coinpay_payment_id as string);
-    if (!cp) {
+    const ls = await getLemonSqueezyCheckout(p.coinpay_payment_id as string);
+    if (!ls) {
       return NextResponse.json({ ok: true, status: "pending" });
     }
-    if (!isPaymentPaid(cp.status)) {
-      // Reflect intermediate CoinPay states without downgrading a webhook-confirmed payment.
-      await sqlClient.execute({
-        sql: "UPDATE payments SET status = 'pending', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'pending'",
-        args: [id],
-      });
-      return NextResponse.json({ ok: true, status: cp.status || "pending" });
+    if (!isCheckoutPaid(ls.status)) {
+      return NextResponse.json({ ok: true, status: ls.status || "pending" });
     }
+    // Paid — mark confirmed before granting.
+    await sqlClient.execute({
+      sql: "UPDATE payments SET status = 'confirmed', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'pending'",
+      args: [id],
+    });
   }
 
-  // Paid — claim and grant in one write transaction. If entitlement delivery
-  // fails, the status claim rolls back so a later poll can retry.
+  // Claim and grant in one write transaction. If entitlement delivery fails,
+  // the status claim rolls back so a later poll can retry.
   const tx = await sqlClient.transaction("write");
   try {
     const grant = await grantPaymentInTransaction({
@@ -62,7 +62,6 @@ export async function GET(req: Request) {
       apiKey: grant.apiKeyPlaintext, // shown exactly once
     });
   } catch (error) {
-    // grantPaymentInTransaction owns rollback so the payment remains retryable.
     tx.close();
     console.error("Payment entitlement grant failed; leaving payment retryable", { id, error });
     return NextResponse.json(

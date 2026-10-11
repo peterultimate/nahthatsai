@@ -18,9 +18,6 @@ export default async function SponsorCheckoutPage({ params }: { params: Promise<
       <SponsorCheckoutPoller
         id={s.id}
         amountUsd={s.amountUsd}
-        blockchain={s.blockchain || "SOL"}
-        address={s.paymentAddress || ""}
-        cryptoAmount={s.cryptoAmount || ""}
         prizeLabel={s.prizeLabel}
       />
     </div>

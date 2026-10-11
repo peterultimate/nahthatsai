@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CopyButton } from "./CopyButton";
-import { COINPAY_BLOCKCHAINS, coinpayBlockchainLabel } from "@/lib/coinpay-blockchains";
 import { paymentSuccessContent } from "@/lib/payment-success";
 
 export function BuyButton({
@@ -16,7 +15,6 @@ export function BuyButton({
   label: string;
 }) {
   const router = useRouter();
-  const [coin, setCoin] = useState("SOL");
   const [promo, setPromo] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -29,7 +27,7 @@ export function BuyButton({
     const res = await fetch("/api/payments/create-checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ purpose, blockchain: coin, promoCode: promo.trim() || undefined }),
+      body: JSON.stringify({ purpose, promoCode: promo.trim() || undefined }),
     });
     const data = await res.json();
     if (!res.ok || !data.ok) {
@@ -39,20 +37,17 @@ export function BuyButton({
     }
     // 100%-off comp: granted instantly, no payment.
     if (data.granted) {
-      setOk("Unlocked, thank you! 🎉");
+      setOk("Unlocked, thank you!");
       setTimeout(() => router.refresh(), 800);
       return;
     }
-    router.push(`/checkout/${data.paymentId}`);
+    // Redirect to the hosted Lemon Squeezy checkout.
+    window.location.href = data.checkoutUrl;
   }
 
   return (
     <div style={{ display: "grid", gap: 10 }}>
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-        <select value={coin} onChange={(e) => setCoin(e.target.value)} disabled={busy}
-          style={{ background: "var(--panel-alt)", border: "1px solid var(--border-3)", borderRadius: 10, padding: "10px 12px", color: "var(--text)" }}>
-          {COINPAY_BLOCKCHAINS.map((c) => <option key={c} value={c}>{coinpayBlockchainLabel(c)}</option>)}
-        </select>
         <input
           value={promo}
           onChange={(e) => setPromo(e.target.value.toUpperCase())}
@@ -63,7 +58,7 @@ export function BuyButton({
       </div>
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
         <button className="btn btn-primary" onClick={buy} disabled={busy}>
-          {busy ? "Starting…" : `${label}: $${priceUsd} in crypto`}
+          {busy ? "Starting…" : `${label}: $${priceUsd}`}
         </button>
         {promo.trim() && <span className="muted-sm">a valid code discounts this at checkout</span>}
       </div>
@@ -77,16 +72,10 @@ export function CheckoutPoller({
   paymentId,
   purpose,
   amountUsd,
-  blockchain,
-  address,
-  cryptoAmount,
 }: {
   paymentId: string;
   purpose: string;
   amountUsd: number;
-  blockchain: string;
-  address: string;
-  cryptoAmount: string;
 }) {
   const [status, setStatus] = useState("pending");
   const [apiKey, setApiKey] = useState<string | null>(null);
@@ -102,14 +91,14 @@ export function CheckoutPoller({
         if (data.apiKey) setApiKey(data.apiKey);
         if (data.status === "granted") clearInterval(t);
       }
-    }, 5000);
+    }, 4000);
     return () => clearInterval(t);
   }, [paymentId, status]);
 
   if (status === "granted") {
     return (
       <div className="form-card container-narrow">
-        <h1>Payment confirmed ✓</h1>
+        <h1>Payment confirmed</h1>
         {purpose === "api_access" && apiKey ? (
           <>
             <div className="form-ok">API access granted. Here&apos;s your API key. Copy it now, it won&apos;t be shown again:</div>
@@ -131,25 +120,14 @@ export function CheckoutPoller({
 
   return (
     <div className="form-card container-narrow">
-      <h1>Send ${amountUsd} in {blockchain.replace("_", " ")}</h1>
-      <p className="muted">Send exactly this amount to the address below. This page updates automatically once the payment confirms on-chain.</p>
-      <div className="field">
-        <label>Amount ({blockchain.replace("_", " ")})</label>
-        <div style={{ display: "flex", gap: 8 }}>
-          <input readOnly value={cryptoAmount} style={{ fontFamily: "monospace" }} />
-          <CopyButton text={cryptoAmount} label="Copy" />
-        </div>
-      </div>
-      <div className="field">
-        <label>Payment address</label>
-        <div style={{ display: "flex", gap: 8 }}>
-          <input readOnly value={address} style={{ fontFamily: "monospace" }} />
-          <CopyButton text={address} label="Copy" />
-        </div>
-      </div>
+      <h1>Waiting for payment</h1>
+      <p className="muted">
+        Complete your ${amountUsd} purchase at the checkout. This page updates automatically once your
+        payment is confirmed.
+      </p>
       <div className="notice">
-        <span className="rss-title">Waiting for payment…</span>
-        <div className="muted-sm">Status: {status}. Keep this tab open. It can take a minute after you send.</div>
+        <span className="rss-title">Checking payment status…</span>
+        <div className="muted-sm">Status: {status}. Keep this tab open after you finish paying.</div>
       </div>
     </div>
   );

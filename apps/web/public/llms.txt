@@ -19,7 +19,7 @@
 
 ## Account & pricing
 
-- [Pricing](https://nahthatsai.com/pricing): Playing is free. Optional $2 lifetime membership and $1 API access (crypto via CoinPay).
+- [Pricing](https://nahthatsai.com/pricing): Playing is free. Optional $2 lifetime membership and $1 API access (card via Lemon Squeezy).
 - [Create account](https://nahthatsai.com/signup): Free: save streaks, appear on leaderboards, earn rewards.
 
 ## About

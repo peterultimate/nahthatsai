@@ -21,7 +21,7 @@ export async function grantPaymentInTransaction({
   purpose,
 }: GrantPaymentArgs): Promise<GrantResult | null> {
   try {
-    // A webhook may have left the row pending while CoinPay is already paid.
+    // A webhook may have left the row pending while the checkout is already paid.
     await tx.execute({
       sql: "UPDATE payments SET status = 'confirmed', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'pending'",
       args: [paymentId],

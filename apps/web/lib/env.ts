@@ -76,14 +76,20 @@ export const env = {
   posthogKey: process.env.POSTHOG_KEY || "",
   posthogHost: process.env.POSTHOG_HOST || "",
 
-  coinpay: {
-    apiKey: process.env.COINPAY_API_KEY || "",
-    businessId: process.env.COINPAY_BUSINESS_ID || "",
-    baseUrl: process.env.COINPAY_BASE_URL || "https://coinpayportal.com/api",
-    webhookSecret: process.env.COINPAY_WEBHOOK_SECRET || "",
+  lemonSqueezy: {
+    apiKey: process.env.LEMONSQUEEZY_API_KEY || "",
+    storeId: process.env.LEMONSQUEEZY_STORE_ID || "",
+    webhookSecret: process.env.LEMONSQUEEZY_WEBHOOK_SECRET || "",
+    baseUrl: process.env.LEMONSQUEEZY_BASE_URL || "https://api.lemonsqueezy.com/v1",
+    variants: {
+      apiAccess: process.env.LEMONSQUEEZY_VARIANT_API_ACCESS || "",
+      lifetimeMembership: process.env.LEMONSQUEEZY_VARIANT_LIFETIME_MEMBERSHIP || "",
+      playPass: process.env.LEMONSQUEEZY_VARIANT_PLAY_PASS || "",
+      sponsor: process.env.LEMONSQUEEZY_VARIANT_SPONSOR || "",
+    },
   },
-  get coinpayConfigured() {
-    return !!(this.coinpay.apiKey && this.coinpay.businessId);
+  get paymentsConfigured() {
+    return !!(this.lemonSqueezy.apiKey && this.lemonSqueezy.storeId);
   },
   priceApiAccessUsd: usd(process.env.PRICE_API_ACCESS_USD, 1),
   priceLifetimeUsd: usd(process.env.PRICE_LIFETIME_USD, 2),

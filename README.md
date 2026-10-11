@@ -113,7 +113,7 @@ routing through OpenRouter, so no model IDs need to change.
 | **Admin** | Full console: users, tags, media, batches, seed (Unsplash + OpenAI), notifications, newsletter, promo codes, prize draws |
 | **Public API** | `/v1/opinions/:id` + `/v1/provenance`: signed, rate-limited, API key management per user (scoped keys with prefix `nts_live_`) |
 | **RSS** | 12 feeds out of the box: Latest, Trending, Featured, Search, Tag, Per-media, Leaderboard (All/Weekly/Monthly/Streaks/Tag), with `<link>` autodiscovery |
-| **Payments** | CoinPay crypto checkout for prize sponsorship + membership tiers; 402 Payment Required gate for crawler/automated API traffic |
+| **Payments** | Lemon Squeezy hosted checkout for prize sponsorship + membership tiers (cards, Apple Pay, and more); x402 Payment Required gate (crypto, USDC) for crawler/automated API traffic |
 | **Push** | Web Push notifications (VAPID) for new rounds, reward drops, prize wins, and admin broadcasts |
 | **Demo mode** | One-click demo admin / demo user login on the login page to try every role without signing up |
 

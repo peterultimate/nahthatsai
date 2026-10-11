@@ -43,7 +43,7 @@ export default function PrivacyPage() {
       <h2>Service providers</h2>
       <ul>
         <li><strong>Email</strong> is delivered via Resend.</li>
-        <li><strong>Payments</strong> are processed in crypto via CoinPay.</li>
+        <li><strong>Payments</strong> are processed via Lemon Squeezy (cards, Apple Pay, and more).</li>
         <li><strong>Hosting</strong> is on Railway. Media is stored in object storage.</li>
         <li><strong>Push notifications</strong> are delivered through your browser&apos;s push service.</li>
       </ul>

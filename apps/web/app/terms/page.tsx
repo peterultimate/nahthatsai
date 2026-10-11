@@ -30,8 +30,8 @@ export default function TermsPage() {
 
       <h2>Payments</h2>
       <p>
-        Optional purchases (such as lifetime membership or API access) are processed in
-        cryptocurrency via CoinPay. Digital goods and access grants are generally non-refundable
+        Optional purchases (such as lifetime membership or API access) are processed via
+        Lemon Squeezy. Digital goods and access grants are generally non-refundable
         except where required by law. Prices may change.
       </p>
 

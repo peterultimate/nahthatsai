@@ -32,7 +32,7 @@ export default async function ApiDocsPage() {
       <div className="rss-bar">
         <div>
           <div className="rss-title">Get API access: ${env.priceApiAccessUsd}</div>
-          <div className="rss-copy">A one-time ${env.priceApiAccessUsd} in crypto (via CoinPay) issues an API key. Keeps out spam.</div>
+          <div className="rss-copy">A one-time ${env.priceApiAccessUsd} via Lemon Squeezy issues an API key. Keeps out spam.</div>
         </div>
         {user ? (
           <BuyButton purpose="api_access" priceUsd={env.priceApiAccessUsd} label="Get a key" />
