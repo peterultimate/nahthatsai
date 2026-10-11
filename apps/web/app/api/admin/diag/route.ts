@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin";
 import { sqlClient } from "@/lib/db";
+import { readdir, stat } from "node:fs/promises";
+import { join } from "node:path";
+import { mediaStorageDir } from "@nahthatsai/seed";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -59,6 +62,26 @@ export async function GET() {
           LIMIT 10`,
   });
 
+  // List files in the local media pool to see if AI images survived the DB reset.
+  let mediaFiles: Array<{ name: string; size: number; mtime: string }> = [];
+  let mediaDir = "";
+  try {
+    mediaDir = mediaStorageDir();
+    const poolDir = join(mediaDir, "pool");
+    const entries = await readdir(poolDir);
+    for (const name of entries) {
+      try {
+        const s = await stat(join(poolDir, name));
+        if (s.isFile()) {
+          mediaFiles.push({ name, size: s.size, mtime: s.mtime.toISOString() });
+        }
+      } catch { /* skip */ }
+    }
+    mediaFiles.sort((a, b) => b.mtime.localeCompare(a.mtime));
+  } catch (e) {
+    mediaFiles = [{ name: `error: ${(e as Error).message}`, size: 0, mtime: "" }];
+  }
+
   return NextResponse.json({
     ok: true,
     bySourceStatus: bySourceStatus.rows,
@@ -67,5 +90,8 @@ export async function GET() {
     poolBalance: poolBalance.rows,
     tsStats: tsStats.rows,
     unsplashSample: unsplashSample.rows,
+    mediaDir,
+    mediaFilesCount: mediaFiles.length,
+    mediaFiles: mediaFiles.slice(0, 100),
   });
 }
